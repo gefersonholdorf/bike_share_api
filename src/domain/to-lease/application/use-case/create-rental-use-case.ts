@@ -1,14 +1,18 @@
-import { Either, left, right } from "src/core/errors/either"
+import { Either, left, right } from "src/core/exceptions/either"
 import { UserRepository } from "../repositories/user-repository"
 import { RentalRepository } from "../repositories/rental-repository"
 import { BikeRepository } from "../repositories/bike-repository"
+import { ResourceNotFoundError } from "src/core/exceptions/errors/resource-not-found-error"
+import { Rental } from "../../enterprise/entities/rental"
+import { BikeNotAvailableError } from "src/core/exceptions/errors/bike-not-available-error"
+import { ActiveLeaseError } from "src/core/exceptions/errors/active-lease-error"
 
 export interface CreateRentalUseCaseRequest {
     userId: number
     bikeId: number
 }
 
-export type CreateRentalUseCaseResponse = Either<never, {}>
+export type CreateRentalUseCaseResponse = Either<ResourceNotFoundError | BikeNotAvailableError | ActiveLeaseError, {}>
 
 export class CreateRentalUseCase {
     constructor(
@@ -25,18 +29,30 @@ export class CreateRentalUseCase {
         const user = await this.userRepository.findById(userId)
 
         if(!user) {
-            throw new Error()
+            return left(new ResourceNotFoundError())
         }
 
         const bike = await this.bikeRepository.findById(bikeId)
 
         if(!bike) {
-            throw new Error()
+            return left(new ResourceNotFoundError())
+        }
+
+        const rental = await this.rentalRepository.findRentalActiveByUserId(userId)
+
+        if(rental) {
+            return left(new ActiveLeaseError())
         }
 
         if(bike.status != 'DISPONÍVEL') {
-            throw new Error()
+            return left(new BikeNotAvailableError())
         }
+
+        const newRental = Rental.create({
+            userId, bikeId
+        })
+
+        await this.rentalRepository.create(newRental)
 
         return right({})
     }

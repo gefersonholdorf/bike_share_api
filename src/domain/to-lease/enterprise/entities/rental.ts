@@ -1,5 +1,6 @@
 import { Entity } from "src/core/entities/entity"
 import { UniqueEntityId } from "src/core/entities/unique-entity-id"
+import dayjs from "dayjs"
 
 export interface RentalProps {
     id?: UniqueEntityId
@@ -21,6 +22,7 @@ export class Rental extends Entity<RentalProps>{
 
     set finishTime(newDate: Date) {
         this.props.finishTime = newDate
+        this.calculateTotalRentalTimeAndPrice()
     }
 
     get userId() {
@@ -35,8 +37,15 @@ export class Rental extends Entity<RentalProps>{
         return this.props.value!
     }
 
-    set value(value: number) {
-        this.props.value = value
+    private calculateTotalRentalTimeAndPrice() {
+        const start = dayjs(this.props.startTime)   
+        const finish = dayjs(this.props.finishTime)
+
+        const hours = Math.ceil(finish.diff(start, 'hour', true))
+
+        const PRICEPERHOUR = 2.00
+
+        this.props.value = hours * PRICEPERHOUR
     }
 
     static create(
